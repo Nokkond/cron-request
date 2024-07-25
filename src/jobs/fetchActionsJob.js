@@ -5,24 +5,29 @@ const Action = require('../models/action');
 const fetchAndSaveActions = async () => {
   try {
     const actions = await fetchActions();
-
-    for (const action of actions) {
-      const { trx_id, block_time, block_num } = action.action_trace;
-
-      const newAction = new Action({
-        trx_id,
-        block_time,
-        block_num
-      });
-
-      await newAction.save().catch(err => {
-        if (err.code !== 11000) {
-          console.error('Error saving action:', err);
+    
+    const actionDocs = actions.map(action => ({
+      trx_id: action.action_trace.trx_id,
+      block_time: action.action_trace.block_time,
+      block_num: action.action_trace.block_num
+    }));
+    
+    await Action.insertMany(actionDocs, { ordered: false })
+      .then(() => {
+        console.log('Actions fetched and saved');
+      })
+      .catch(err => {
+        if (err.writeErrors) {
+          err.writeErrors.forEach(e => {
+            if (e.code !== 11000) {
+              console.error('Error saving action:', e);
+            }
+          });
+        } else {
+          console.error('Error in insertMany:', err);
         }
       });
-    }
 
-    console.log('Actions fetched and saved');
   } catch (error) {
     console.error('Error in fetchAndSaveActions:', error);
   }
